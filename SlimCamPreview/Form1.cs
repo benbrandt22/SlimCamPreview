@@ -164,8 +164,7 @@ namespace SlimCamPreview
 
             if (currentIndex < 0) {
                 // no camera currently in use, jump to the first one in the list
-                configuration.Camera = cameras.FirstOrDefault();
-                StartVideo();
+                SwitchCamera(cameras.FirstOrDefault());
                 return;
             }
 
@@ -173,10 +172,60 @@ namespace SlimCamPreview
             if (increment < 0 && newIndex < 0) { newIndex = (cameras.Count - 1); }
             if (increment > 0 && newIndex > (cameras.Count - 1)) { newIndex = 0; }
 
-            configuration.Camera = cameras[newIndex];
+            SwitchCamera(cameras[newIndex]);
+        }
 
+        private void SwitchCamera(EncoderDevice camera) {
+            configuration.Camera = camera;
             StartVideo();
         }
 
+        private void SwitchCamera(string cameraName, string cameraDevicePath)
+        {
+            var cameras = EncoderDevices.FindDevices(EncoderDeviceType.Video);
+            var device = cameras.FirstOrDefault(d => d.DevicePath == cameraDevicePath && d.Name == cameraName);
+            SwitchCamera(device);
+        }
+
+        private void RightClickMenu_Opening(object sender, CancelEventArgs e)
+        {
+            // Update checkmarks to reflect current reality
+            miWindowBorderVisible.Checked = ChromeVisible;
+            miKeepOnTop.Checked = this.TopMost;
+
+            // update the Choose Camera dropdown with a current list of cameras
+            miChooseCamera.DropDownItems.Clear();
+            var cameras = EncoderDevices.FindDevices(EncoderDeviceType.Video).ToList();
+            cameras.Select(c => {
+                var cameraMenuItem = new ToolStripMenuItem(c.Name) {
+                    Tag = new KeyValuePair<string,string>(c.Name, c.DevicePath),
+                    Checked = (c.Name == configuration?.Camera?.Name && c.DevicePath == configuration?.Camera?.DevicePath)
+                };
+                cameraMenuItem.Click += CameraMenuItemOnClick;
+                return cameraMenuItem;
+            })
+            .ToList().ForEach(mi => miChooseCamera.DropDownItems.Add(mi));
+            
+        }
+
+        private void CameraMenuItemOnClick(object sender, EventArgs eventArgs) {
+            var menuItemTag = (KeyValuePair<string, string>)((ToolStripMenuItem)sender).Tag;
+            string cameraName = menuItemTag.Key;
+            string cameraDevicePath = menuItemTag.Value;
+            SwitchCamera(cameraName, cameraDevicePath);
+        }
+
+        private void miWindowBorderVisible_Click(object sender, EventArgs e) {
+            this.ChromeVisible = miWindowBorderVisible.Checked;
+        }
+
+        private void miChooseCamera_DropDownOpening(object sender, EventArgs e)
+        {
+
+        }
+
+        private void miKeepOnTop_Click(object sender, EventArgs e) {
+            this.TopMost = miKeepOnTop.Checked;
+        }
     }
 }
